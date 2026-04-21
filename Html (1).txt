@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>JeepVPmoney | Premium Investment Platform</title>
+    <!-- Tailwind + Fonts + Icons + Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #0a0c0f; overflow-x: hidden; }
+        .glass-card { background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(12px); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 28px; box-shadow: 0 20px 35px -12px rgba(0,0,0,0.5); }
+        .gold-glow { box-shadow: 0 0 12px rgba(212, 175, 55, 0.6); }
+        .btn-gold { background: linear-gradient(135deg, #D4AF37 0%, #B88A1A 100%); color: black; font-weight: 700; transition: all 0.2s; }
+        .btn-gold:hover { transform: scale(1.02); box-shadow: 0 8px 20px rgba(212, 175, 55, 0.4); }
+        .btn-outline-gold { border: 1.5px solid #D4AF37; color: #D4AF37; background: transparent; transition: 0.2s; }
+        .btn-outline-gold:hover { background: rgba(212, 175, 55, 0.15); }
+        .green-badge { background: #0f3b2c; color: #2ecc71; border-left: 3px solid #2ecc71; }
+        .card-hover { transition: transform 0.2s ease, box-shadow 0.2s; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 30px -12px rgba(0,0,0,0.6); }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #1a1e24; }
+        ::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
+        .animate-pulse-gold { animation: pulseGold 1.8s infinite; }
+        @keyframes pulseGold { 0% { opacity: 0.7; } 50% { opacity: 1; text-shadow: 0 0 6px #D4AF37; } 100% { opacity: 0.7; } }
+        .toast-notify { position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #1e1f24; border-left: 5px solid #D4AF37; padding: 12px 20px; border-radius: 14px; color: white; font-size: 0.9rem; box-shadow: 0 10px 25px -5px black; transition: all 0.3s; }
+        .fake-ticker { background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border-radius: 40px; padding: 6px 16px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+        .plan-card { background: linear-gradient(145deg, #0f1217 0%, #080b0e 100%); border-radius: 28px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(212,175,55,0.2); }
+        .plan-card:hover { border-color: #D4AF37; }
+        .admin-badge { background: #1f1a0a; color: #D4AF37; }
+    </style>
+</head>
+<body class="text-white">
+
+<div id="app" class="max-w-7xl mx-auto px-3 md:px-5 py-4">
+    <!-- DYNAMIC ROUTER / PAGES using simple JS show/hide -->
+    <div id="landingPage" class="page"></div>
+    <div id="signupPage" class="page hidden"></div>
+    <div id="loginPage" class="page hidden"></div>
+    <div id="dashboardPage" class="page hidden"></div>
+    <div id="depositPage" class="page hidden"></div>
+    <div id="withdrawalPage" class="page hidden"></div>
+    <div id="incomePlansPage" class="page hidden"></div>
+    <div id="historyPage" class="page hidden"></div>
+    <div id="profilePage" class="page hidden"></div>
+    <div id="supportPage" class="page hidden"></div>
+    <div id="adminPanel" class="page hidden"></div>
+</div>
+
+<script>
+    // Mock Database (localStorage)
+    let users = JSON.parse(localStorage.getItem('vp_users')) || [];
+    let currentUser = JSON.parse(sessionStorage.getItem('vp_current')) || null;
+    let deposits = JSON.parse(localStorage.getItem('vp_deposits')) || [];
+    let withdrawals = JSON.parse(localStorage.getItem('vp_withdrawals')) || [];
+    let investments = JSON.parse(localStorage.getItem('vp_investments')) || [];
+    let notifications = JSON.parse(localStorage.getItem('vp_notifications')) || [];
+    let adminNotify = [];
+
+    function saveAll() {
+        localStorage.setItem('vp_users', JSON.stringify(users));
+        localStorage.setItem('vp_deposits', JSON.stringify(deposits));
+        localStorage.setItem('vp_withdrawals', JSON.stringify(withdrawals));
+        localStorage.setItem('vp_investments', JSON.stringify(investments));
+        localStorage.setItem('vp_notifications', JSON.stringify(notifications));
+    }
+
+    function addNotification(msg, type="info") {
+        notifications.unshift({ msg, date: new Date().toLocaleString(), type });
+        if(notifications.length>20) notifications.pop();
+        saveAll();
+        showToast(msg);
+    }
+
+    function showToast(msg) {
+        let toastDiv = document.createElement('div');
+        toastDiv.className = 'toast-notify';
+        toastDiv.innerHTML = `<i class="fas fa-bell text-gold-400 mr-2"></i> ${msg}`;
+        document.body.appendChild(toastDiv);
+        setTimeout(()=> toastDiv.remove(), 3500);
+    }
+
+    function updateBalanceUI() { 
+        if(currentUser) {
+            let balSpan = document.getElementById('liveBalanceVal');
+            if(balSpan) balSpan.innerText = currentUser.balance.toLocaleString();
+            let earningSpan = document.getElementById('dailyEarningSpan');
+            if(earningSpan) earningSpan.innerText = currentUser.dailyProfit?.toFixed(0) || 0;
+        }
+    }
+
+    function calcDailyProfit(user) {
+        let totalDaily = 0;
+        investments.forEach(inv => { if(inv.userId === user.id && inv.status === 'active') totalDaily += inv.dailyRate; });
+        return totalDaily;
+    }
+
+    function updateUserDaily() {
+        if(currentUser) {
+            let dp = calcDailyProfit(currentUser);
+            currentUser.dailyProfit = dp;
+            let idx = users.findIndex(u=> u.id === currentUser.id);
+            if(idx!==-1) users[idx].dailyProfit = dp;
+            saveAll();
+            updateBalanceUI();
+        }
+    }
+
+    // auto daily cron simulation (each minute)
+    setInterval(() => {
+        if(currentUser) {
+            let now = new Date();
+            let lastClaim = currentUser.lastProfitClaim ? new Date(currentUser.lastProfitClaim) : null;
+            if(!lastClaim || (now - lastClaim) >= 86400000) {
+                let dailyAdd = currentUser.dailyProfit || 0;
+                if(dailyAdd>0){
+                    currentUser.balance += dailyAdd;
+                    currentUser.lastProfitClaim = now.toISOString();
+                    let idx = users.findIndex(u=> u.id===currentUser.id);
+                    if(idx!==-1) users[idx].balance = currentUser.balance;
+                    saveAll();
+                    addNotification(`✨ +${dailyAdd.toLocaleString()} RWF daily profit credited!`, "profit");
+                    updateBalanceUI();
+                    renderCurrentPage();
+                }
+            }
+        }
+    }, 60000);
+
+    function checkInvestmentCompletion() {
+        investments.forEach(inv => {
+            if(inv.status === 'active' && inv.endDate && new Date(inv.endDate) <= new Date()){
+                inv.status = 'completed';
+                addNotification(`✅ Plan ${inv.planName} completed. Total earnings finished.`, "success");
+            }
+        });
+        saveAll();
+    }
+    setInterval(checkInvestmentCompletion, 30000);
+
+    // Helper Render
+    function renderCurrentPage() {
+        let pageId = sessionStorage.getItem('currentPage') || 'landing';
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        let target = document.getElementById(pageId);
+        if(target) target.classList.remove('hidden');
+        if(pageId === 'dashboardPage') renderDashboard();
+        else if(pageId === 'depositPage') renderDeposit();
+        else if(pageId === 'withdrawalPage') renderWithdrawal();
+        else if(pageId === 'incomePlansPage') renderIncomePlans();
+        else if(pageId === 'historyPage') renderHistory();
+        else if(pageId === 'profilePage') renderProfile();
+        else if(pageId === 'supportPage') renderSupport();
+        else if(pageId === 'adminPanel') renderAdmin();
+        else if(pageId === 'signupPage') renderSignup();
+        else if(pageId === 'loginPage') renderLogin();
+        else renderLanding();
+    }
+
+    function navigateTo(page) { sessionStorage.setItem('currentPage', page); renderCurrentPage(); }
+
+    function logout() { sessionStorage.removeItem('vp_current'); currentUser = null; navigateTo('landing'); showToast("Logged out securely"); }
+
+    // Landing
+    function renderLanding() {
+        let html = `<div class="min-h-screen flex flex-col items-center justify-center text-center py-12"><div class="max-w-4xl mx-auto"><div class="inline-block px-4 py-1 rounded-full bg-black/50 border border-gold-500/50 text-gold-400 text-sm mb-6"><i class="fas fa-crown"></i> PREMIUM INVESTMENT</div><h1 class="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-green-400 via-gold-500 to-white bg-clip-text text-transparent">JeepVP<span class="text-gold-400">money</span></h1><p class="text-gray-300 text-lg md:text-2xl mt-4">Elite fintech — Earn up to 10% daily ROI. Luxury dashboard & secure ecosystem.</p><div class="flex flex-wrap justify-center gap-5 mt-10"><button onclick="navigateTo('signupPage')" class="btn-gold px-8 py-4 rounded-2xl text-lg"><i class="fas fa-user-plus"></i> Get Started</button><button onclick="navigateTo('loginPage')" class="btn-outline-gold px-8 py-4 rounded-2xl text-lg"><i class="fas fa-sign-in-alt"></i> Login</button></div><div class="glass-card mt-16 p-6 flex flex-wrap justify-between gap-4 text-sm"><div><i class="fas fa-shield-alt text-green-500"></i> SSL Secure</div><div><i class="fas fa-clock text-gold-400"></i> 24/7 Withdrawals</div><div><i class="fas fa-chart-line text-green-400"></i> Daily Profit</div></div><div class="fake-ticker mt-12 w-full max-w-2xl mx-auto"><i class="fas fa-chart-simple text-gold-400"></i> <span id="tickerSpan">User just deposited 120,000 RWF | 350,000 RWF withdrawal approved | New VIP King</span></div></div></div>`;
+        document.getElementById('landingPage').innerHTML = html;
+        setInterval(()=>{
+            let fakeOps = ["🔥 New deposit: 210,000 RWF via MoMoPay", "⭐ Emmanuel invested 500,000 RWF (VP King)", "💰 Withdrawal 45,000 RWF completed", "🚀 Daily profit paid to 102 users"];
+            let ticker = document.getElementById('tickerSpan');
+            if(ticker) ticker.innerText = fakeOps[Math.floor(Math.random()*fakeOps.length)];
+        }, 5000);
+    }
+
+    function renderSignup() {
+        let html = `<div class="max-w-md mx-auto glass-card p-8 mt-8"><h2 class="text-3xl font-bold text-gold-400">Create Account</h2><form id="signupForm"><div class="mt-4"><input type="text" id="fullName" placeholder="Full Name" class="w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white" required></div><div class="mt-3"><input type="tel" id="phone" placeholder="Phone Number" class="w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white" required></div><div class="mt-3"><input type="email" id="email" placeholder="Email Address" class="w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white" required></div><div class="mt-3"><input type="password" id="password" placeholder="Password" class="w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white" required></div><button type="submit" class="btn-gold w-full py-3 rounded-xl mt-6">Sign Up <i class="fas fa-arrow-right"></i></button><div class="mt-4 text-center"><button type="button" onclick="fakeGoogleSignup()" class="bg-gray-800 w-full py-2 rounded-xl"><i class="fab fa-google"></i> Sign up with Google</button></div><p class="mt-4 text-center text-gray-400">Already have account? <span class="text-gold-400 cursor-pointer" onclick="navigateTo('loginPage')">Login</span></p></form></div>`;
+        document.getElementById('signupPage').innerHTML = html;
+        document.getElementById('signupForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            let email = document.getElementById('email').value;
+            if(users.find(u=> u.email === email)) { showToast("Email already exists!"); return; }
+            let newUser = { id: Date.now(), name: document.getElementById('fullName').value, phone: document.getElementById('phone').value, email, password: document.getElementById('password').value, balance: 0, dailyProfit: 0, referralCode: `VP${Date.now()}`, totalDeposit:0, totalWithdraw:0, referEarnings:0, lastProfitClaim: null, isBlocked: false };
+            users.push(newUser); currentUser = newUser; sessionStorage.setItem('vp_current', JSON.stringify(newUser)); saveAll(); addNotification("Welcome to JeepVPmoney! Start investing."); navigateTo('dashboardPage');
+        });
+    }
+    function fakeGoogleSignup() { let fakeEmail = `user${Date.now()}@gmail.com`; if(users.find(u=> u.email === fakeEmail)) return; let newUser = { id: Date.now(), name: "Google User", phone: "0788888888", email: fakeEmail, password: "google_auth", balance: 0, dailyProfit: 0, referralCode: `VP${Date.now()}`, totalDeposit:0, totalWithdraw:0, referEarnings:0, lastProfitClaim: null, isBlocked: false }; users.push(newUser); currentUser = newUser; sessionStorage.setItem('vp_current', JSON.stringify(newUser)); saveAll(); addNotification("Google signup success."); navigateTo('dashboardPage'); }
+
+    function renderLogin() {
+        let html = `<div class="max-w-md mx-auto glass-card p-8 mt-8" style="background-image: radial-gradient(circle at 10% 30%, rgba(0,0,0,0.9), rgba(0,0,0,0.7));"><h2 class="text-3xl font-bold text-gold-400">Login</h2><form id="loginForm"><div class="mt-4"><input type="email" id="loginEmail" placeholder="Email" class="w-full bg-black/40 border border-gray-700 rounded-xl p-3" required></div><div class="mt-3"><input type="password" id="loginPassword" placeholder="Password" class="w-full bg-black/40 border border-gray-700 rounded-xl p-3" required></div><button type="submit" class="btn-gold w-full py-3 rounded-xl mt-6">Secure Login</button><div class="text-right mt-2"><span class="text-gold-400 text-sm cursor-pointer" onclick="alert('Reset link sent (demo)')">Forgot password?</span></div><button type="button" onclick="fakeGoogleSignup()" class="bg-gray-800 w-full py-2 rounded-xl mt-3"><i class="fab fa-google"></i> Continue with Google</button></form></div>`;
+        document.getElementById('loginPage').innerHTML = html;
+        document.getElementById('loginForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            let email = document.getElementById('loginEmail').value;
+            let pwd = document.getElementById('loginPassword').value;
+            let user = users.find(u=> u.email === email && u.password === pwd);
+            if(!user) { showToast("Invalid credentials"); return; }
+            if(user.isBlocked) { showToast("Account blocked, contact support."); return; }
+            currentUser = user; sessionStorage.setItem('vp_current', JSON.stringify(user)); updateUserDaily(); navigateTo('dashboardPage');
+        });
+    }
+
+    function renderDashboard() {
+        if(!currentUser){ navigateTo('loginPage'); return; }
+        updateUserDaily();
+        let totalInvest = investments.filter(i=> i.userId===currentUser.id && i.status==='active').reduce((a,b)=>a+b.amount,0);
+        let html = `<div class="grid md:grid-cols-4 gap-5"><div class="glass-card p-5 col-span-1 md:col-span-4 flex justify-between"><div><h2 class="text-2xl">Welcome back, ${currentUser.name}</h2><div class="text-gold-400 text-xl"><i class="fas fa-wallet"></i> Balance: <span id="liveBalanceVal">${currentUser.balance.toLocaleString()}</span> RWF</div><div>Daily profit: ${currentUser.dailyProfit?.toFixed(0) || 0} RWF</div></div><div><i class="fas fa-gem text-gold-400 text-3xl"></i> VIP</div></div>${menuCards()}<div class="glass-card p-5 md:col-span-3"><canvas id="earnChart" height="150"></canvas></div><div class="glass-card p-5"><h3>Notifications</h3><div id="notifList">${notifications.slice(0,4).map(n=>`<div class="border-b border-gray-700 py-2 text-sm">🔔 ${n.msg}</div>`).join('')}</div></div></div>`;
+        document.getElementById('dashboardPage').innerHTML = html;
+        updateBalanceUI();
+        let ctx = document.getElementById('earnChart')?.getContext('2d');
+        if(ctx) new Chart(ctx, { type: 'line', data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat'], datasets: [{ label: 'Daily Profit (RWF)', data: [1200,1500,1900,2100,2700,3200], borderColor: '#D4AF37', tension: 0.3 }] } });
+    }
+
+    function menuCards() { return `<button onclick="navigateTo('dashboardPage')" class="glass-card p-3 text-center card-hover">🏠 Home</button><button onclick="navigateTo('depositPage')" class="glass-card p-3 text-center card-hover">💰 Deposit</button><button onclick="navigateTo('withdrawalPage')" class="glass-card p-3 text-center card-hover">💸 Withdrawal</button><button onclick="navigateTo('incomePlansPage')" class="glass-card p-3 text-center card-hover">📈 Income Plans</button><button onclick="navigateTo('historyPage')" class="glass-card p-3 text-center card-hover">📜 History</button><button onclick="navigateTo('profilePage')" class="glass-card p-3 text-center card-hover">👤 Profile</button><button onclick="navigateTo('supportPage')" class="glass-card p-3 text-center card-hover">🛟 Support</button><button onclick="logout()" class="glass-card p-3 text-center text-red-400">🚪 Logout</button>`; }
+
+    function renderDeposit() {
+        let html = `<div class="max-w-3xl mx-auto"><div class="glass-card p-6"><h2 class="text-2xl text-gold-400">Deposit Funds</h2><p>Min:10,000 | Max:500,000 RWF</p><div class="bg-black/40 p-4 rounded-xl my-4"><p>MoMoPay Code: <strong class="text-gold-400">1929636</strong> | Name: Emanuel</p></div><form id="depositForm"><input type="number" id="depositAmount" placeholder="Amount (RWF)" min="10000" max="500000" class="w-full bg-black/40 rounded-xl p-3" required><input type="file" id="proofImage" accept="image/*" class="mt-3 w-full" required><button type="submit" class="btn-gold w-full py-3 mt-4">Submit Deposit Proof</button></form><div id="depositHistoryPreview"><h3 class="mt-6">Recent Deposits</h3>${deposits.filter(d=>d.userId===currentUser.id).slice(0,5).map(d=>`<div class="flex justify-between border-b py-2"><span>${d.amount} RWF</span><span class="${d.status==='approved'?'text-green-400':'text-yellow-400'}">${d.status}</span></div>`).join('')}</div></div></div>`;
+        document.getElementById('depositPage').innerHTML = html;
+        document.getElementById('depositForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            let amount = parseInt(document.getElementById('depositAmount').value);
+            if(amount<10000 || amount>500000) { showToast("Invalid deposit range"); return; }
+            let file = document.getElementById('proofImage').files[0];
+            if(!file) return;
+            let newDep = { id: Date.now(), userId: currentUser.id, amount, status: 'pending', proof: 'uploaded_demo.png', date: new Date().toISOString() };
+            deposits.push(newDep); saveAll();
+            addNotification(`Deposit request ${amount} RWF under review.`);
+            setTimeout(() => {
+                let depIdx = deposits.findIndex(d=> d.id===newDep.id);
+                if(depIdx!==-1) { deposits[depIdx].status='approved'; saveAll(); let userIdx=users.findIndex(u=>u.id===currentUser.id); users[userIdx].balance += amount; users[userIdx].totalDeposit += amount; currentUser.balance += amount; sessionStorage.setItem('vp_current', JSON.stringify(users[userIdx])); addNotification(`✅ Deposit ${amount} RWF approved! Balance updated.`); updateBalanceUI(); renderCurrentPage(); }
+            }, 3000);
+            renderCurrentPage();
+        });
+    }
+
+    function renderWithdrawal() {
+        let html = `<div class="max-w-2xl mx-auto glass-card p-6"><h2>Withdrawal</h2><p>Fee 40% | Min 5,000 | Max 1,000,000 RWF</p><p class="text-gold-400">Allowed Hours: 8:34 AM & 3:00 PM</p><form id="withdrawForm"><input type="number" id="withdrawAmount" placeholder="Amount RWF" class="w-full bg-black/40 p-3 rounded-xl"><input type="text" id="momoNumber" placeholder="MoMo Number" class="w-full mt-3 bg-black/40 p-3 rounded-xl"><button type="submit" class="btn-gold w-full py-3 mt-4">Request Withdrawal</button></form><div id="withdrawHistory"></div></div>`;
+        document.getElementById('withdrawalPage').innerHTML = html;
+        document.getElementById('withdrawForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            let amount = parseInt(document.getElementById('withdrawAmount').value);
+            let momo = document.getElementById('momoNumber').value;
+            let nowHour = new Date().getHours(); let nowMin = new Date().getMinutes();
+            let allowed = (nowHour===8 && nowMin>=34 && nowMin<=35) || (nowHour===15 && nowMin===0);
+            if(!allowed){ showToast("Withdrawal only at 8:34 AM or 3:00 PM"); return; }
+            if(amount<5000 || amount>1000000) { showToast("Invalid amount"); return; }
+            let fee = amount*0.4; let net = amount - fee;
+            if(currentUser.balance < amount) { showToast("Insufficient balance"); return; }
+            currentUser.balance -= amount; currentUser.totalWithdraw += amount;
+            let idx = users.findIndex(u=>u.id===currentUser.id);
+            users[idx].balance = currentUser.balance; saveAll();
+            let newWd = { id: Date.now(), userId: currentUser.id, amount, netAmount: net, fee, momo, status: 'pending', date: new Date().toISOString() };
+            withdrawals.push(newWd); saveAll();
+            addNotification(`Withdrawal request ${amount} RWF (Fee: ${fee}) processing.`);
+            setTimeout(()=>{ let wdIdx = withdrawals.findIndex(w=>w.id===newWd.id); if(wdIdx!==-1){ withdrawals[wdIdx].status='completed'; saveAll(); addNotification(`Withdrawal ${amount} RWF completed to ${momo}`); renderCurrentPage(); } }, 5000);
+            updateBalanceUI(); renderCurrentPage();
+        });
+    }
+
+    function renderIncomePlans() {
+        let plans = [["Starter 10k",10000,1000,20],["Starter 20k",20000,2000,20],["Starter 30k",30000,3000,20],["Starter 40k",40000,4000,20],["Starter 50k",50000,5000,20],["Starter 60k",60000,6000,20],["Master 150k",150000,15000,15],["Master 200k",200000,20000,15],["Master 250k",250000,25000,15],["Master 300k",300000,30000,15],["VP KING 500k",500000,55000,15]];
+        let html = `<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"><h1 class="col-span-full text-3xl">Investment Plans</h1>${plans.map(p=>`<div class="plan-card p-5" onclick="buyPlan('${p[0]}',${p[1]},${p[2]},${p[3]})"><h3 class="text-xl text-gold-400">${p[0]}</h3><p>Invest ${p[1].toLocaleString()} RWF</p><p>Earn ${p[2].toLocaleString()} daily × ${p[3]} days</p><p class="text-green-400">Total: ${(p[2]*p[3]).toLocaleString()} RWF</p>${p[0]==='VP KING 500k'?'<span class="text-gold-400">+10k bonus</span>':''}</div>`).join('')}</div>`;
+        document.getElementById('incomePlansPage').innerHTML = html;
+    }
+    window.buyPlan = (name, cost, daily, days) => {
+        if(!currentUser) { navigateTo('loginPage'); return; }
+        if(currentUser.balance < cost) { showToast("Insufficient balance"); return; }
+        currentUser.balance -= cost;
+        let end = new Date(); end.setDate(end.getDate()+days);
+        investments.push({ id: Date.now(), userId: currentUser.id, planName: name, amount: cost, dailyRate: daily, status: 'active', startDate: new Date(), endDate: end });
+        if(name.includes('VP KING')) { currentUser.balance += 10000; addNotification("👑 VP KING bonus 10,000 RWF added!"); }
+        let idx = users.findIndex(u=>u.id===currentUser.id);
+        users[idx].balance = currentUser.balance;
+        saveAll();
+        updateUserDaily();
+        addNotification(`Invested ${cost} RWF in ${name}. Daily earnings start!`);
+        renderCurrentPage();
+        updateBalanceUI();
+    };
+    function renderHistory() { let html = `<div class="glass-card p-5"><h2>Deposit History</h2>${deposits.filter(d=>d.userId===currentUser.id).map(d=>`<div>${d.amount} RWF - ${d.status}</div>`).join('')}<h2 class="mt-6">Withdrawal History</h2>${withdrawals.filter(w=>w.userId===currentUser.id).map(w=>`<div>${w.amount} RWF (${w.status}) - fee ${w.fee} RWF</div>`).join('')}</div>`; document.getElementById('historyPage').innerHTML = html; }
+    function renderProfile() { let html = `<div class="glass-card p-6"><p><strong>Name:</strong> ${currentUser.name}</p><p><strong>Email:</strong> ${currentUser.email}</p><p><strong>Phone:</strong> ${currentUser.phone}</p><p><strong>Referral Link:</strong> https://jeepvp.com/${currentUser.referralCode}</p><p><strong>Total Deposit:</strong> ${currentUser.totalDeposit||0} RWF</p><button class="btn-outline-gold mt-4 px-4 py-2 rounded-xl" onclick="logout()">Logout</button></div>`; document.getElementById('profilePage').innerHTML = html; }
+    function renderSupport() { document.getElementById('supportPage').innerHTML = `<div class="glass-card p-8 text-center"><i class="fas fa-headset text-5xl text-gold-400"></i><p class="mt-4">Email: earnmoneyvp26@gmail.com</p><p>Telegram Admin: @Jpmoneyvp</p><a href="https://whatsapp.com/channel/0029Vb7huO3G8l5LZztWyg1L" target="_blank" class="btn-gold inline-block px-6 py-2 rounded-full mt-4"><i class="fab fa-whatsapp"></i> WhatsApp Channel</a></div>`; }
+    function renderAdmin() {
+        if(!currentUser || currentUser.email !== "admin@jeepvp.com") { showToast("Access denied"); navigateTo('dashboardPage'); return; }
+        let html = `<div class="glass-card p-5"><h2>Admin Panel</h2><div>Pending Deposits: ${deposits.filter(d=>d.status==='pending').length}</div><button onclick="approveAllPending()" class="btn-gold mt-2">Approve All Deposits</button><h3 class="mt-6">Users List</h3>${users.map(u=>`<div>${u.name} - Balance:${u.balance} ${u.isBlocked?'BLOCKED':''} <button onclick="toggleBlock(${u.id})" class="text-red-400">Block/Unblock</button></div>`).join('')}</div>`;
+        document.getElementById('adminPanel').innerHTML = html;
+    }
+    window.approveAllPending = () => { deposits.forEach(d=>{ if(d.status==='pending'){ d.status='approved'; let user = users.find(u=>u.id===d.userId); if(user){ user.balance += d.amount; user.totalDeposit += d.amount; } } }); saveAll(); addNotification("Admin approved deposits"); renderCurrentPage(); };
+    window.toggleBlock = (id) => { let user = users.find(u=>u.id===id); if(user) user.isBlocked = !user.isBlocked; saveAll(); renderCurrentPage(); };
+    if(!users.find(u=>u.email==="admin@jeepvp.com")) users.push({ id: 999, name:"Admin", email:"admin@jeepvp.com", password:"admin123", balance:0, isBlocked:false, dailyProfit:0 });
+    saveAll();
+    if(currentUser) updateUserDaily();
+    renderCurrentPage();
+</script>
+</body>
+</html>
